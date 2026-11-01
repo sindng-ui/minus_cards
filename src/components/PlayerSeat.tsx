@@ -20,14 +20,14 @@ export const OpponentSeat: React.FC<OpponentSeatProps> = React.memo(
 
     return (
       <div
-        className={`rounded-2xl p-2 transition-colors duration-200 border flex flex-col justify-between ${posStyles} ${
+        className={`rounded-2xl p-2 transition-colors duration-200 border flex flex-col justify-start ${posStyles} ${
           isCurrentTurn
             ? 'bg-[#1a162b] border-amber-400 shadow-[0_0_14px_rgba(251,191,36,0.35)]'
             : 'bg-[#111827] border-slate-800'
         }`}
       >
         {/* Header: Vertical 2-Row Layout so Name gets 100% width without being crowded by Coins! */}
-        <div className="flex flex-col gap-1 border-b border-slate-800 pb-1.5 mb-1 shrink-0 w-full">
+        <div className="flex flex-col gap-1 border-b border-slate-800 pb-1.5 mb-1.5 shrink-0 w-full">
           {/* Row 1: Turn Number + Player Name (Full Width) */}
           <div className="flex items-center gap-1.5 w-full min-w-0">
             <span
@@ -62,8 +62,8 @@ export const OpponentSeat: React.FC<OpponentSeatProps> = React.memo(
           </div>
         </div>
 
-        {/* Collected Cards (50% Half-Overlapped Consecutive Runs) */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-[90px] max-h-[175px] flex items-start justify-center">
+        {/* Collected Cards (50% Half-Overlapped Consecutive Runs - Uses full height from top to bottom!) */}
+        <div className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden flex items-start justify-center pt-0.5">
           <HalfOverlapCardGroups
             cards={player.cards}
             size="xs"

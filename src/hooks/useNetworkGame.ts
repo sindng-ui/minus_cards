@@ -13,18 +13,14 @@ import {
   evaluateCardSynergy,
 } from '../utils/gameLogic';
 import { soundEngine } from '../utils/soundEngine';
+import {
+  PEER_PREFIX,
+  PEER_CONFIG,
+  generateRoomCode,
+  ensureHostPeerAlive,
+} from '../utils/peerConfig';
 
-const PEER_PREFIX = 'minus-cards-v1-room-';
 const INITIAL_COINS = 11;
-
-function generateRoomCode(): string {
-  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-  let result = '';
-  for (let i = 0; i < 4; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-}
 
 export function useNetworkGame() {
   const [myPlayerId] = useState<string>(() => {
@@ -45,18 +41,14 @@ export function useNetworkGame() {
   >('IDLE');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeEmojis, setActiveEmojis] = useState<EmojiEvent[]>([]);
-
   const [gameState, setGameState] = useState<GameState | null>(null);
 
-  // Host-only private state (full remaining deck & hidden excluded cards)
   const hostDeckRef = useRef<number[]>([]);
   const hostExcludedRef = useRef<number[]>([]);
   const gameStateRef = useRef<GameState | null>(null);
   const peerRef = useRef<Peer | null>(null);
   const clientConnectionsRef = useRef<Map<string, DataConnection>>(new Map());
   const hostConnRef = useRef<DataConnection | null>(null);
-
-  // Track predetermined order segments during multi-round dice ties
   const diceOrderBucketsRef = useRef<string[][]>([]);
 
   useEffect(() => {
@@ -71,7 +63,6 @@ export function useNetworkGame() {
     }, 2800);
   }, []);
 
-  // Broadcast updated state from Host to all connected Clients
   const broadcastState = useCallback((nextState: GameState) => {
     gameStateRef.current = nextState;
     setGameState(nextState);
@@ -83,12 +74,8 @@ export function useNetworkGame() {
     });
   }, []);
 
-  // Host logic: Advance turn to the next player in turnOrder
   const advanceTurnAndOrFinish = useCallback(
-    (
-      state: GameState,
-      cardWasTaken: boolean
-    ): GameState => {
+    (state: GameState, cardWasTaken: boolean): GameState => {
       const sortedPlayers = [...state.players].sort(
         (a, b) => a.turnOrder - b.turnOrder
       );
@@ -99,9 +86,7 @@ export function useNetworkGame() {
       const nextPlayerId = sortedPlayers[nextIdx].id;
 
       if (cardWasTaken) {
-        // Check if deck has another card
         if (hostDeckRef.current.length === 0) {
-          // Game Finished! Reveal hidden excluded cards & compute winner
           const rankings = calculateFinalRankings(state.players);
           soundEngine.playVictoryFanfare();
           return {
@@ -124,18 +109,16 @@ export function useNetworkGame() {
           deckCount: hostDeckRef.current.length,
           currentTurnPlayerId: nextPlayerId,
         };
-      } else {
-        // Just passed with 1 coin, advance turn to next player
-        return {
-          ...state,
-          currentTurnPlayerId: nextPlayerId,
-        };
       }
+
+      return {
+        ...state,
+        currentTurnPlayerId: nextPlayerId,
+      };
     },
     []
   );
 
-  // Host logic: Handle player PASS (Pay 1 coin)
   const handleHostPlayerPass = useCallback(
     (playerId: string) => {
       const st = gameStateRef.current;
@@ -143,10 +126,9 @@ export function useNetworkGame() {
         return;
 
       const player = st.players.find((p) => p.id === playerId);
-      if (!player || player.coins <= 0 || st.currentCard === null) return; // Cannot pass with 0 coins!
+      if (!player || player.coins <= 0 || st.currentCard === null) return;
 
       soundEngine.playCoinPass();
-
       const updatedPlayers = st.players.map((p) =>
         p.id === playerId ? { ...p, coins: p.coins - 1 } : p
       );
@@ -173,7 +155,6 @@ export function useNetworkGame() {
     [advanceTurnAndOrFinish, broadcastState]
   );
 
-  // Host logic: Handle player TAKE (Take currentCard + all centerCoins)
   const handleHostPlayerTake = useCallback(
     (playerId: string) => {
       const st = gameStateRef.current;
@@ -220,7 +201,6 @@ export function useNetworkGame() {
     [advanceTurnAndOrFinish, broadcastState]
   );
 
-  // Host logic: Handle Dice Roll for turn ordering (including tie-breaker re-rolls!)
   const handleHostDiceRoll = useCallback(
     (playerId: string) => {
       const st = gameStateRef.current;
@@ -243,33 +223,24 @@ export function useNetworkGame() {
           : p
       );
 
-      // Check if all required players in this dice round have rolled
       const allRolled = st.diceTiedPlayerIds.every((id) => {
         const pl = updatedPlayers.find((item) => item.id === id);
         return pl?.diceRoll?.hasRolled;
       });
 
-      const interimState: GameState = {
-        ...st,
-        players: updatedPlayers,
-      };
-
-      broadcastState(interimState);
+      broadcastState({ ...st, players: updatedPlayers });
 
       if (allRolled) {
-        // Evaluate buckets after a brief pause so players can see the dice results
         setTimeout(() => {
           const currentSt = gameStateRef.current;
           if (!currentSt || currentSt.phase !== 'DICE_ORDER') return;
 
-          // Refine buckets: split each bucket by total descending
           const newBuckets: string[][] = [];
           for (const bucket of diceOrderBucketsRef.current) {
             if (bucket.length <= 1) {
               newBuckets.push(bucket);
               continue;
             }
-            // Group players in this bucket by their dice total
             const scoreMap = new Map<number, string[]>();
             bucket.forEach((pid) => {
               const pObj = currentSt.players.find((x) => x.id === pid);
@@ -287,12 +258,9 @@ export function useNetworkGame() {
           }
 
           diceOrderBucketsRef.current = newBuckets;
-          const tiedIds = newBuckets
-            .filter((b) => b.length > 1)
-            .flat();
+          const tiedIds = newBuckets.filter((b) => b.length > 1).flat();
 
           if (tiedIds.length > 0) {
-            // Some players tied! Only tied players re-roll!
             const tiedNames = tiedIds
               .map(
                 (id) => currentSt.players.find((p) => p.id === id)?.name || ''
@@ -321,7 +289,6 @@ export function useNetworkGame() {
               diceStatusMessage: `⚡ 동점 발생! (${tiedNames})님만 주사위를 다시 굴립니다!`,
             });
           } else {
-            // All unique ranks resolved!
             const finalOrderIds = newBuckets.flat();
             const orderedPlayers = currentSt.players
               .map((p) => ({
@@ -360,7 +327,161 @@ export function useNetworkGame() {
     [broadcastState]
   );
 
-  // Bot AI Turn Automation (when Host adds AI bots to fill 3~4 seats)
+  // Bind Host listeners to a Peer instance (used both on initial creation & background wake-up recreation)
+  const attachHostListeners = useCallback(
+    (peer: Peer) => {
+      peer.on('open', () => {
+        setIsHost(true);
+        setConnectionStatus('CONNECTED');
+        setErrorMessage(null);
+      });
+
+      peer.on('connection', (conn) => {
+        conn.on('data', (raw) => {
+          const msg = raw as NetworkMessage;
+          const current = gameStateRef.current;
+          if (!current) return;
+
+          if (msg.type === 'JOIN_REQUEST') {
+            const existing = current.players.find(
+              (p) => p.id === msg.playerId
+            );
+            if (!existing && current.players.length >= 4) {
+              conn.send({
+                type: 'KICK_INFO',
+                reason: '방 인원(최대 4인)이 가득 찼습니다.',
+              } satisfies NetworkMessage);
+              return;
+            }
+            if (!existing && current.phase !== 'LOBBY') {
+              conn.send({
+                type: 'KICK_INFO',
+                reason: '이미 게임이 진행 중인 방입니다.',
+              } satisfies NetworkMessage);
+              return;
+            }
+
+            clientConnectionsRef.current.set(msg.playerId, conn);
+
+            const nextPlayers: Player[] = existing
+              ? current.players.map((p) =>
+                  p.id === msg.playerId
+                    ? { ...p, name: msg.name, connected: true }
+                    : p
+                )
+              : [
+                  ...current.players,
+                  {
+                    id: msg.playerId,
+                    name: msg.name,
+                    isHost: false,
+                    coins: INITIAL_COINS,
+                    cards: [],
+                    turnOrder: current.players.length,
+                    connected: true,
+                  },
+                ];
+
+            const nextState: GameState = {
+              ...current,
+              players: nextPlayers,
+            };
+
+            // Send state immediately to the newly joined client AND broadcast
+            if (conn.open) {
+              conn.send({ type: 'STATE_SYNC', state: nextState });
+            } else {
+              conn.once('open', () => {
+                conn.send({ type: 'STATE_SYNC', state: nextState });
+              });
+            }
+            broadcastState(nextState);
+          } else if (msg.type === 'PLAYER_ACTION_ROLL_DICE') {
+            handleHostDiceRoll(msg.playerId);
+          } else if (msg.type === 'PLAYER_ACTION_PASS') {
+            handleHostPlayerPass(msg.playerId);
+          } else if (msg.type === 'PLAYER_ACTION_TAKE') {
+            handleHostPlayerTake(msg.playerId);
+          } else if (msg.type === 'SEND_EMOJI') {
+            triggerEmojiDisplay(msg.emojiEvent);
+            clientConnectionsRef.current.forEach((c) => {
+              if (c.open) c.send(msg);
+            });
+          }
+        });
+      });
+
+      peer.on('disconnected', () => {
+        if (!peer.destroyed) {
+          try {
+            peer.reconnect();
+          } catch {
+            // Handled by visibility/heartbeat recovery
+          }
+        }
+      });
+
+      peer.on('error', (err: unknown) => {
+        const errObj = err as { type?: string; message?: string };
+        const msg = errObj?.message || String(err);
+        // Never crash the Host room on temporary mobile background socket drops
+        if (
+          errObj?.type === 'lost-connection' ||
+          errObj?.type === 'disconnected' ||
+          errObj?.type === 'network' ||
+          errObj?.type === 'server-error' ||
+          errObj?.type === 'socket-error' ||
+          errObj?.type === 'socket-closed' ||
+          msg.includes('Lost connection')
+        ) {
+          if (!peer.destroyed && peer.disconnected) {
+            try {
+              peer.reconnect();
+            } catch {
+              // Ignore
+            }
+          }
+          return;
+        }
+      });
+    },
+    [
+      broadcastState,
+      handleHostDiceRoll,
+      handleHostPlayerPass,
+      handleHostPlayerTake,
+      triggerEmojiDisplay,
+    ]
+  );
+
+  // Mobile Foreground Return & Periodic Keep-Alive Watchdog for Host
+  useEffect(() => {
+    const checkAndHealHost = () => {
+      if (!isHost || !gameStateRef.current) return;
+      const code = gameStateRef.current.roomCode;
+      ensureHostPeerAlive(peerRef.current, code, (newPeer) => {
+        peerRef.current = newPeer;
+        attachHostListeners(newPeer);
+      });
+    };
+
+    const handleResume = () => {
+      if (document.visibilityState === 'visible') {
+        checkAndHealHost();
+      }
+    };
+
+    const interval = setInterval(checkAndHealHost, 3500);
+    document.addEventListener('visibilitychange', handleResume);
+    window.addEventListener('focus', handleResume);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleResume);
+      window.removeEventListener('focus', handleResume);
+    };
+  }, [isHost, attachHostListeners]);
+
+  // Bot AI Turn Automation
   useEffect(() => {
     if (!isHost || !gameState) return;
 
@@ -387,12 +508,10 @@ export function useNetworkGame() {
         const timer = setTimeout(() => {
           const card = gameState.currentCard!;
           const coinsOnTable = gameState.centerCoins;
-          // Forced take if 0 coins
           if (activePlayer.coins <= 0) {
             handleHostPlayerTake(activePlayer.id);
             return;
           }
-          // Smart bot heuristics
           const synergy = evaluateCardSynergy(activePlayer.cards, card);
           const netCost = synergy.scoreDelta - coinsOnTable;
           if (
@@ -431,7 +550,7 @@ export function useNetworkGame() {
       }
 
       const code = generateRoomCode();
-      const peer = new Peer(PEER_PREFIX + code);
+      const peer = new Peer(PEER_PREFIX + code, PEER_CONFIG);
       peerRef.current = peer;
 
       const initialHostPlayer: Player = {
@@ -461,97 +580,14 @@ export function useNetworkGame() {
         winnerId: null,
       };
 
-      peer.on('open', () => {
-        setIsHost(true);
-        setConnectionStatus('CONNECTED');
-        setGameState(initialState);
-        gameStateRef.current = initialState;
-      });
-
-      peer.on('connection', (conn) => {
-        conn.on('data', (raw) => {
-          const msg = raw as NetworkMessage;
-          const current = gameStateRef.current;
-          if (!current) return;
-
-          if (msg.type === 'JOIN_REQUEST') {
-            const existing = current.players.find(
-              (p) => p.id === msg.playerId
-            );
-            if (!existing && current.players.length >= 4) {
-              conn.send({
-                type: 'KICK_INFO',
-                reason: '방 인원(최대 4인)이 가득 찼습니다.',
-              } satisfies NetworkMessage);
-              return;
-            }
-            if (!existing && current.phase !== 'LOBBY') {
-              conn.send({
-                type: 'KICK_INFO',
-                reason: '이미 게임이 진행 중인 방입니다.',
-              } satisfies NetworkMessage);
-              return;
-            }
-
-            clientConnectionsRef.current.set(msg.playerId, conn);
-
-            let nextPlayers: Player[];
-            if (existing) {
-              nextPlayers = current.players.map((p) =>
-                p.id === msg.playerId
-                  ? { ...p, name: msg.name, connected: true }
-                  : p
-              );
-            } else {
-              nextPlayers = [
-                ...current.players,
-                {
-                  id: msg.playerId,
-                  name: msg.name,
-                  isHost: false,
-                  coins: INITIAL_COINS,
-                  cards: [],
-                  turnOrder: current.players.length,
-                  connected: true,
-                },
-              ];
-            }
-
-            broadcastState({
-              ...current,
-              players: nextPlayers,
-            });
-          } else if (msg.type === 'PLAYER_ACTION_ROLL_DICE') {
-            handleHostDiceRoll(msg.playerId);
-          } else if (msg.type === 'PLAYER_ACTION_PASS') {
-            handleHostPlayerPass(msg.playerId);
-          } else if (msg.type === 'PLAYER_ACTION_TAKE') {
-            handleHostPlayerTake(msg.playerId);
-          } else if (msg.type === 'SEND_EMOJI') {
-            triggerEmojiDisplay(msg.emojiEvent);
-            clientConnectionsRef.current.forEach((c) => {
-              if (c.open) c.send(msg);
-            });
-          }
-        });
-      });
-
-      peer.on('error', (err) => {
-        setErrorMessage(`네트워크 오류: ${err.message}`);
-        setConnectionStatus('ERROR');
-      });
+      setGameState(initialState);
+      gameStateRef.current = initialState;
+      attachHostListeners(peer);
     },
-    [
-      myPlayerId,
-      broadcastState,
-      handleHostDiceRoll,
-      handleHostPlayerPass,
-      handleHostPlayerTake,
-      triggerEmojiDisplay,
-    ]
+    [myPlayerId, attachHostListeners]
   );
 
-  // Client: Join an existing room by 4-char code
+  // Client: Join an existing room with automatic retry (handles Host still returning from KakaoTalk app!)
   const joinRoom = useCallback(
     (roomCode: string, playerName: string) => {
       const cleanCode = roomCode.trim().toUpperCase();
@@ -561,89 +597,132 @@ export function useNetworkGame() {
       setErrorMessage(null);
       setConnectionStatus('CONNECTING');
 
-      if (peerRef.current) {
-        peerRef.current.destroy();
-      }
+      let attempts = 0;
+      const maxAttempts = 6;
+      let joinedSuccessfully = false;
 
-      const peer = new Peer();
-      peerRef.current = peer;
+      const attemptConnect = () => {
+        if (joinedSuccessfully) return;
+        attempts += 1;
 
-      peer.on('open', () => {
-        const conn = peer.connect(PEER_PREFIX + cleanCode, { reliable: true });
-        hostConnRef.current = conn;
+        if (peerRef.current) {
+          peerRef.current.destroy();
+        }
 
-        conn.on('open', () => {
-          setIsHost(false);
-          setConnectionStatus('CONNECTED');
-          conn.send({
-            type: 'JOIN_REQUEST',
-            playerId: myPlayerId,
-            name: trimmedName,
-          } satisfies NetworkMessage);
-        });
+        const peer = new Peer(PEER_CONFIG);
+        peerRef.current = peer;
 
-        conn.on('data', (raw) => {
-          const msg = raw as NetworkMessage;
-          if (msg.type === 'STATE_SYNC') {
-            const prevPhase = gameStateRef.current?.phase;
-            const prevTurn = gameStateRef.current?.currentTurnPlayerId;
-            const prevActionId = gameStateRef.current?.lastAction?.id;
-
-            setGameState(msg.state);
-            gameStateRef.current = msg.state;
-
-            // Play client-side sound effects on state transitions
-            if (
-              msg.state.lastAction &&
-              msg.state.lastAction.id !== prevActionId
-            ) {
-              if (msg.state.lastAction.action === 'PASS') {
-                soundEngine.playCoinPass();
-              } else {
-                soundEngine.playCardTake(msg.state.lastAction.coinsTaken || 0);
-              }
-            }
-            if (
-              msg.state.phase === 'PLAYING' &&
-              msg.state.currentTurnPlayerId === myPlayerId &&
-              prevTurn !== myPlayerId
-            ) {
-              soundEngine.playMyTurnAlert();
-            }
-            if (msg.state.phase === 'FINISHED' && prevPhase !== 'FINISHED') {
-              soundEngine.playVictoryFanfare();
-            }
-          } else if (msg.type === 'SEND_EMOJI') {
-            triggerEmojiDisplay(msg.emojiEvent);
-          } else if (msg.type === 'KICK_INFO') {
-            setErrorMessage(msg.reason);
+        const retryOrFail = () => {
+          if (joinedSuccessfully) return;
+          if (attempts < maxAttempts) {
+            setErrorMessage(
+              `방장 스마트폰과 연결 중입니다... (재시도 ${attempts}/${maxAttempts} - 방장이 카톡에서 게임 화면으로 돌아오면 즉시 연결됩니다!)`
+            );
+            setTimeout(attemptConnect, 2200);
+          } else {
+            setErrorMessage(
+              '방장 스마트폰에 연결할 수 없습니다. 방장이 게임 화면을 켜두고 있는지 확인 후 다시 입장 버튼을 눌러주세요!'
+            );
             setConnectionStatus('ERROR');
-            conn.close();
           }
+        };
+
+        peer.on('open', () => {
+          const conn = peer.connect(PEER_PREFIX + cleanCode, {
+            reliable: true,
+          });
+          hostConnRef.current = conn;
+
+          // Timeout if host doesn't answer within 4 seconds
+          const connectTimeout = setTimeout(() => {
+            if (!joinedSuccessfully) {
+              conn.close();
+              retryOrFail();
+            }
+          }, 4000);
+
+          conn.on('open', () => {
+            clearTimeout(connectTimeout);
+            joinedSuccessfully = true;
+            setIsHost(false);
+            setErrorMessage(null);
+            setConnectionStatus('CONNECTED');
+            conn.send({
+              type: 'JOIN_REQUEST',
+              playerId: myPlayerId,
+              name: trimmedName,
+            } satisfies NetworkMessage);
+          });
+
+          conn.on('data', (raw) => {
+            const msg = raw as NetworkMessage;
+            if (msg.type === 'STATE_SYNC') {
+              joinedSuccessfully = true;
+              setErrorMessage(null);
+              setConnectionStatus('CONNECTED');
+
+              const prevPhase = gameStateRef.current?.phase;
+              const prevTurn = gameStateRef.current?.currentTurnPlayerId;
+              const prevActionId = gameStateRef.current?.lastAction?.id;
+
+              setGameState(msg.state);
+              gameStateRef.current = msg.state;
+
+              if (
+                msg.state.lastAction &&
+                msg.state.lastAction.id !== prevActionId
+              ) {
+                if (msg.state.lastAction.action === 'PASS') {
+                  soundEngine.playCoinPass();
+                } else {
+                  soundEngine.playCardTake(
+                    msg.state.lastAction.coinsTaken || 0
+                  );
+                }
+              }
+              if (
+                msg.state.phase === 'PLAYING' &&
+                msg.state.currentTurnPlayerId === myPlayerId &&
+                prevTurn !== myPlayerId
+              ) {
+                soundEngine.playMyTurnAlert();
+              }
+              if (msg.state.phase === 'FINISHED' && prevPhase !== 'FINISHED') {
+                soundEngine.playVictoryFanfare();
+              }
+            } else if (msg.type === 'SEND_EMOJI') {
+              triggerEmojiDisplay(msg.emojiEvent);
+            } else if (msg.type === 'KICK_INFO') {
+              joinedSuccessfully = true;
+              setErrorMessage(msg.reason);
+              setConnectionStatus('ERROR');
+              conn.close();
+            }
+          });
+
+          conn.on('close', () => {
+            if (joinedSuccessfully) {
+              setErrorMessage('방장과의 연결이 종료되었습니다.');
+              setConnectionStatus('ERROR');
+            }
+          });
+
+          conn.on('error', () => {
+            clearTimeout(connectTimeout);
+            retryOrFail();
+          });
         });
 
-        conn.on('close', () => {
-          setErrorMessage('방장과의 연결이 종료되었습니다.');
-          setConnectionStatus('ERROR');
+        peer.on('error', () => {
+          retryOrFail();
         });
+      };
 
-        conn.on('error', () => {
-          setErrorMessage('방에 연결할 수 없습니다. 방 코드를 확인해주세요.');
-          setConnectionStatus('ERROR');
-        });
-      });
-
-      peer.on('error', () => {
-        setErrorMessage(
-          '해당 방 코드를 찾을 수 없거나 네트워크 연결에 실패했습니다.'
-        );
-        setConnectionStatus('ERROR');
-      });
+      attemptConnect();
     },
     [myPlayerId, triggerEmojiDisplay]
   );
 
-  // Host: Update settings in lobby
   const updateSettings = useCallback(
     (nextSettings: GameSettings) => {
       if (!isHost || !gameStateRef.current) return;
@@ -656,7 +735,6 @@ export function useNetworkGame() {
     [isHost, broadcastState]
   );
 
-  // Host: Add AI Bot for quick 3~4 player testing or missing seat
   const addBotPlayer = useCallback(() => {
     const st = gameStateRef.current;
     if (!isHost || !st || st.phase !== 'LOBBY' || st.players.length >= 4)
@@ -679,7 +757,6 @@ export function useNetworkGame() {
     });
   }, [isHost, broadcastState]);
 
-  // Host: Remove player or bot in lobby
   const removePlayer = useCallback(
     (targetId: string) => {
       const st = gameStateRef.current;
@@ -693,7 +770,6 @@ export function useNetworkGame() {
     [isHost, myPlayerId, broadcastState]
   );
 
-  // Host: Start the game (3 to 4 players required!)
   const startGame = useCallback(() => {
     const st = gameStateRef.current;
     if (!isHost || !st) return;
@@ -724,7 +800,7 @@ export function useNetworkGame() {
       phase: 'DICE_ORDER',
       players: resetPlayers,
       deckCount: deck.length,
-      hiddenExcludedCards: [], // Hidden until FINISHED
+      hiddenExcludedCards: [],
       currentCard: null,
       centerCoins: 0,
       currentTurnPlayerId: null,
@@ -737,7 +813,6 @@ export function useNetworkGame() {
     });
   }, [isHost, broadcastState]);
 
-  // Player actions (works whether Host or Client)
   const rollMyDice = useCallback(() => {
     if (isHost) {
       handleHostDiceRoll(myPlayerId);

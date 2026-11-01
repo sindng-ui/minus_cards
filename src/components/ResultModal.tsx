@@ -16,12 +16,16 @@ interface ResultModalProps {
 
 export const ResultModal: React.FC<ResultModalProps> = React.memo(
   ({ gameState, myPlayerId, isHost, onPlayAgain, onReturnToLobby }) => {
+    // Prevent accidental click-through when the player was tapping "Take Card" at the bottom of the screen!
+    const [canInteract, setCanInteract] = React.useState(false);
+
     const rankings = useMemo(
       () => calculateFinalRankings(gameState.players),
       [gameState.players]
     );
 
     useEffect(() => {
+      const timer = setTimeout(() => setCanInteract(true), 1200);
       try {
         confetti({
           particleCount: 80,
@@ -31,6 +35,7 @@ export const ResultModal: React.FC<ResultModalProps> = React.memo(
       } catch {
         // Ignore in headless environments
       }
+      return () => clearTimeout(timer);
     }, []);
 
     return (
@@ -152,14 +157,16 @@ export const ResultModal: React.FC<ResultModalProps> = React.memo(
           {isHost ? (
             <div className="grid grid-cols-2 gap-2.5 pt-1">
               <button
+                disabled={!canInteract}
                 onClick={onPlayAgain}
-                className="py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 font-black text-sm text-white shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
+                className="py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-40 font-black text-sm text-white shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4" /> 바로 한 판 더!
               </button>
               <button
+                disabled={!canInteract}
                 onClick={onReturnToLobby}
-                className="py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-600 font-bold text-sm text-white cursor-pointer"
+                className="py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 border border-slate-600 font-bold text-sm text-white cursor-pointer"
               >
                 대기실(설정변경)로 이동
               </button>
