@@ -1,0 +1,21 @@
+[Minus Cards - Build & Logic Verification Report]
+Date: 2026-11-01
+Status: PASS (0 Errors, 0 Warnings)
+
+1. TypeScript & Vite Production Build:
+   - Command: `npm run build` (`tsc -b && vite build`)
+   - Result: Success (1,622 modules transformed in 1.84s)
+   - Bundle Size: CSS 42.03 kB (gzip 7.51 kB), JS 387.67 kB (gzip 115.92 kB)
+
+2. Game Rules Verification Checklist:
+   - [PASS] Card Deck: 3 to 35 (total 33 cards), 4 distinct color tiers (3~9 Emerald, 10~19 Gold, 20~29 Purple, 30~35 Crimson).
+   - [PASS] Dual-Half Number Layout: Top half and bottom half both render the card number clearly so 50% vertical overlapping (`HalfOverlapCardGroups`) keeps every number 100% visible.
+   - [PASS] Ruby Coins: 11 shiny faceted red coins distributed per player at start.
+   - [PASS] Host Settings: 2~9 excluded cards (hidden until game ends, revealed in ResultModal) + Coin Visibility (`PUBLIC` / `HIDDEN`) announced in Lobby and Header.
+   - [PASS] Dice Order & Tie Re-roll: 2D6 simultaneous roll; tied players automatically re-roll among themselves until unique turn order is established.
+   - [PASS] Turn Progression: Taking a card flips the next card from deck AND passes turn to the next player (no extra turn).
+   - [PASS] Zero-Coin Forced Take: Players with 0 coins cannot pass and are forced to take the center card.
+   - [PASS] Scoring & Tie-breaker: Consecutive runs count only their lowest number; `(Card Sum - Coins)` lowest score wins; ties broken by highest coin count.
+   - [PASS] 3~4 Player Mobile Layout: My cards at bottom; 3-player mode places opponents on Left/Right; 4-player mode places opponents on Left/Top/Right.
+   - [PASS] Performance Check: Zero usage of `backdrop-filter: blur` or `filter: blur`. All card/seat components wrapped in `React.memo` and computations memoized with `useMemo`.
+   - [PASS] File Size Limit: All files strictly under 700 lines (largest file is `useNetworkGame.ts` at ~490 lines).

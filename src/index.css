@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: #090d16;
+  color: #ffffff;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+/* Custom thin scrollbar for card areas */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+}
+
+/* Global Fullscreen Flying Actions (Zero-blur, 60fps GPU Accelerated) */
+@keyframes global-throw {
+  0% {
+    left: var(--from-x);
+    top: var(--from-y);
+    transform: translate(-50%, -50%) scale(1.25);
+    opacity: 0.3;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    left: var(--to-x);
+    top: var(--to-y);
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes global-card-take {
+  0% {
+    left: var(--from-x);
+    top: var(--from-y);
+    transform: translate(-50%, -50%) scale(1.1);
+    opacity: 1;
+  }
+  20% {
+    transform: translate(-50%, -50%) scale(1.15);
+  }
+  100% {
+    left: var(--to-x);
+    top: var(--to-y);
+    transform: translate(-50%, -50%) scale(0.6);
+    opacity: 0.9;
+  }
+}
+
+@keyframes global-coin-trail {
+  0% {
+    left: var(--from-x);
+    top: var(--from-y);
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: var(--to-x);
+    top: var(--to-y);
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 0;
+  }
+}
+
+.animate-global-throw {
+  animation: global-throw 0.48s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+}
+
+.animate-global-card-take {
+  animation: global-card-take 0.65s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+}
+
+.animate-global-coin-trail {
+  animation: global-coin-trail 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
