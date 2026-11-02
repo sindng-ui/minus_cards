@@ -16,6 +16,7 @@ import {
 import { GameSettings, GameState } from '../types/game';
 import { extractRoomCodeFromUrl } from '../utils/peerConfig';
 import { RubyCoin } from './RubyCoin';
+import { DiscoveredRoomList } from './DiscoveredRoomList';
 
 interface LobbyScreenProps {
   myPlayerId: string;
@@ -179,6 +180,13 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = React.memo(
               </div>
             ) : (
               <>
+                {/* 0. Arcade Style Auto Discovered Rooms (One-Touch Instant Join for Family!) */}
+                <DiscoveredRoomList
+                  myName={myName}
+                  onJoinRoom={onJoinRoom}
+                  isConnecting={connectionStatus === 'CONNECTING'}
+                />
+
                 {/* 1. Host Room Section (Main Default) */}
                 <div className="p-4 rounded-2xl bg-[#111827] border-2 border-rose-500/50 space-y-3.5 shadow-xl">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-2">

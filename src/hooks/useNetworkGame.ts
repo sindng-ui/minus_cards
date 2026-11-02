@@ -19,6 +19,7 @@ import {
   generateRoomCode,
   ensureHostPeerAlive,
 } from '../utils/peerConfig';
+import { findAvailableHostSlot } from '../utils/roomDiscovery';
 
 const INITIAL_COINS = 11;
 
@@ -396,6 +397,28 @@ export function useNetworkGame() {
               });
             }
             broadcastState(nextState);
+          } else if (msg.type === 'ROOM_INFO_QUERY') {
+            const current = gameStateRef.current;
+            if (current) {
+              const hostP = current.players.find((p) => p.isHost);
+              const responseMsg: NetworkMessage = {
+                type: 'ROOM_INFO_RESPONSE',
+                room: {
+                  slotId: current.roomCode,
+                  roomCode: current.roomCode,
+                  hostName: hostP?.name || '방장',
+                  playerCount: current.players.length,
+                  maxPlayers: 4,
+                  phase: current.phase,
+                  lastPing: Date.now(),
+                },
+              };
+              if (conn.open) {
+                conn.send(responseMsg);
+              } else {
+                conn.once('open', () => conn.send(responseMsg));
+              }
+            }
           } else if (msg.type === 'PLAYER_ACTION_ROLL_DICE') {
             handleHostDiceRoll(msg.playerId);
           } else if (msg.type === 'PLAYER_ACTION_PASS') {
@@ -538,7 +561,7 @@ export function useNetworkGame() {
 
   // Host: Open a new room
   const createRoom = useCallback(
-    (hostName: string, settings: GameSettings) => {
+    async (hostName: string, settings: GameSettings) => {
       const trimmed = hostName.trim() || '방장';
       setMyName(trimmed);
       localStorage.setItem('mc_player_name', trimmed);
@@ -549,7 +572,17 @@ export function useNetworkGame() {
         peerRef.current.destroy();
       }
 
-      const code = generateRoomCode();
+      // Automatically find an available family slot (SLOT1~5) or generate 4-char code
+      let code = generateRoomCode();
+      try {
+        const slot = await findAvailableHostSlot();
+        if (slot) {
+          code = slot;
+        }
+      } catch {
+        // Fallback to random 4-char code
+      }
+
       const peer = new Peer(PEER_PREFIX + code, PEER_CONFIG);
       peerRef.current = peer;
 

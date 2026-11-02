@@ -66,6 +66,16 @@ export interface GameState {
   winnerId: string | null;
 }
 
+export interface DiscoveredRoom {
+  slotId: string;
+  roomCode: string;
+  hostName: string;
+  playerCount: number;
+  maxPlayers: number;
+  phase: GamePhase;
+  lastPing: number;
+}
+
 export type NetworkMessage =
   | { type: 'JOIN_REQUEST'; playerId: string; name: string }
   | { type: 'STATE_SYNC'; state: GameState }
@@ -73,7 +83,9 @@ export type NetworkMessage =
   | { type: 'PLAYER_ACTION_PASS'; playerId: string }
   | { type: 'PLAYER_ACTION_TAKE'; playerId: string }
   | { type: 'SEND_EMOJI'; emojiEvent: EmojiEvent }
-  | { type: 'KICK_INFO'; reason: string };
+  | { type: 'KICK_INFO'; reason: string }
+  | { type: 'ROOM_INFO_QUERY' }
+  | { type: 'ROOM_INFO_RESPONSE'; room: DiscoveredRoom };
 
 export interface PlayerScoreDetail {
   playerId: string;
