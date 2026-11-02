@@ -88,7 +88,7 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(
     }, [me.cards, gameState.currentCard]);
 
     return (
-      <div className="h-[100dvh] w-full bg-[#090d16] text-white flex flex-col justify-between p-2 gap-1.5 overflow-hidden select-none relative">
+      <div className="h-full w-full bg-[#090d16] text-white flex flex-col justify-between p-2 gap-1.5 overflow-hidden select-none relative pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]">
         {/* Fullscreen 3D Flying Action Animations (Coin Throw & Card/Coin Sweep) */}
         <TableAnimations
           lastAction={gameState.lastAction}

@@ -106,7 +106,7 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = React.memo(
     // View 1: Not inside a room yet (Create or Join)
     if (!gameState || connectionStatus !== 'CONNECTED') {
       return (
-        <div className="min-h-[100dvh] w-full bg-[#090d16] text-white flex flex-col items-center justify-between p-4 overflow-y-auto">
+        <div className="min-h-full h-full w-full bg-[#090d16] text-white flex flex-col items-center justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] overflow-y-auto">
           {/* Header Banner */}
           <div className="w-full max-w-md pt-2 text-center space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-950 border border-rose-500/50 text-rose-300 text-xs font-bold">
@@ -348,7 +348,7 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = React.memo(
       gameState.players.length >= 3 && gameState.players.length <= 4;
 
     return (
-      <div className="min-h-[100dvh] w-full bg-[#090d16] text-white flex flex-col items-center justify-between p-4 overflow-y-auto">
+      <div className="min-h-full h-full w-full bg-[#090d16] text-white flex flex-col items-center justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] overflow-y-auto">
         <div className="w-full max-w-md space-y-4 my-auto">
           {/* KakaoTalk Invite Card (No Clunky Code UI, Pure 1-Click Invite!) */}
           <div className="p-5 rounded-2xl bg-[#111827] border-2 border-amber-500/60 space-y-3.5 text-center shadow-xl">

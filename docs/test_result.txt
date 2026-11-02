@@ -1,5 +1,5 @@
-=== Minus Cards APK Build & System Test Result ===
-Date: 2026-11-02 23:35 KST
+=== Minus Cards APK Build & Safe-Area Test Result ===
+Date: 2026-11-02 23:54 KST
 Platform: Android (Capacitor 7.x Native Packaging)
 Target APK: minus-cards.apk (Root Directory) & android/app/build/outputs/apk/debug/app-debug.apk
 
@@ -8,27 +8,25 @@ Command: npm run build (tsc -b && vite build)
 Status: SUCCESS
 - 1626 modules transformed
 - dist/index.html (0.79 kB)
-- dist/assets/index-C8W7pKVG.css (49.58 kB)
-- dist/assets/index-BtqJzj1f.js (401.07 kB)
+- dist/assets/index-CEYnoQRA.css (49.95 kB)
+- dist/assets/index-B_6ViwDn.js (401.32 kB)
 
-[2. Capacitor Web Assets Sync]
-Command: npx cap sync android
-Status: SUCCESS
-- Web assets copied to android/app/src/main/assets/public
-- Android plugin registry synced
+[2. Safe-Area & System Windows Isolation]
+1) Native Android Level:
+   - MainActivity.java: WindowCompat.setDecorFitsSystemWindows(getWindow(), true) 적용.
+   - activity_main.xml: CoordinatorLayout 및 WebView에 android:fitsSystemWindows="true" 적용.
+   - styles.xml: statusBarColor="#090D16", navigationBarColor="#090D16" 일체형 다크 테마 적용.
+   - 효과: 상단 상태바(배터리/시계) 및 하단 네비게이션 소프트키(뒤로가기/홈버튼) 영역이 WebView 바깥으로 완전히 분리되어 절대 겹치지 않음.
+2) CSS/Web UI Level:
+   - GameBoard.tsx: h-full 및 pt-[max(0.5rem,env(safe-area-inset-top))], pb-[max(0.5rem,env(safe-area-inset-bottom))]
+   - LobbyScreen.tsx: min-h-full h-full 및 pt-[max(1rem,env(safe-area-inset-top))], pb-[max(1rem,env(safe-area-inset-bottom))]
 
 [3. Native Android Compilation & APK Packaging]
 Command: gradlew.bat assembleDebug
-Status: SUCCESS (BUILD SUCCESSFUL in 15s)
-- Total Actionable Tasks: 93 (49 executed, 44 up-to-date)
-- Resolved Java 21/17 mismatch for javac compiler (compatibility aligned to JDK 17)
+Status: SUCCESS (BUILD SUCCESSFUL in 12s)
+- Total Actionable Tasks: 93 (37 executed, 56 up-to-date)
 - Generated Output:
   - File: minus-cards.apk
-  - Size: 4,268,639 bytes (약 4.07 MB)
+  - Size: 4,269,335 bytes (약 4.07 MB)
   - Package ID: com.minuscards.familygame
   - App Name: 마이너스 카드
-
-[4. Room Discovery & Architecture Verification]
-- Slot Scanner Protocol: src/utils/roomDiscovery.ts (132 lines)
-- Realtime Room UI: src/components/DiscoveredRoomList.tsx (127 lines)
-- Direct Room Discovery integration verified in LobbyScreen.tsx

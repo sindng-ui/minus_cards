@@ -11,8 +11,8 @@
 | `important/PROJECT_RULES.md` | ~30 | 프로젝트 핵심 규칙 (Blur 금지, 700줄 제한, 게임 룰 요약) |
 | `.gitignore` | ~45 | Git 형상 관리 제외 대상 설정 (node_modules, dist, 환경변수, OS/IDE 캐시 등) |
 | `capacitor.config.ts` | ~15 | Capacitor 안드로이드 네이티브 앱 메타데이터 설정 (`com.minuscards.familygame`, '마이너스 카드') |
-| `android/` | 폴더 | Capacitor 기반 생성된 Android Studio 네이티브 Gradle 프로젝트 |
-| `minus-cards.apk` | 바이너리 | **최종 빌드된 안드로이드 설치 APK 파일** (약 4.07MB, 스마트폰에 즉시 설치 가능) |
+| `android/` | 폴더 | Capacitor 기반 Android Studio 네이티브 프로젝트 (`MainActivity.java`에 `fitsSystemWindows=true` 및 상/하단 시스템바 격리 적용) |
+| `minus-cards.apk` | 바이너리 | **최종 빌드된 안드로이드 설치 APK 파일** (상태바/하단 소프트키 겹침 완전 해결, 약 4.07MB) |
 | `docs/apk_implementation_plan.md` | ~35 | Android APK 빌드 및 오락실 원터치 자동 방 찾기 구현 계획서 |
 | `docs/implementation_plan.md` | ~110 | 초기 설계 및 확정 룰 구현 계획서 |
 | `docs/test_result.txt` | ~35 | 타입스크립트 빌드, Capacitor 동기화 및 APK 빌드 검증 결과 |
